@@ -29,7 +29,7 @@ def cleanup_config(cfg):
     
     ## Hardcodes to remove the language head
     ## Assumes downstream use is as visual representation
-    config.agent["langweight"] = 0
+    # config.agent["langweight"] = 0
     return config.agent
 
 def remove_language_head(state_dict):
@@ -70,7 +70,8 @@ def load_r3m(modelid):
     cleancfg = cleanup_config(modelcfg)
     rep = hydra.utils.instantiate(cleancfg)
     rep = torch.nn.DataParallel(rep)
-    r3m_state_dict = remove_language_head(torch.load(modelpath, map_location=torch.device(device))['r3m'])
+    # r3m_state_dict = remove_language_head(torch.load(modelpath, map_location=torch.device(device))['r3m'])
+    r3m_state_dict = torch.load(modelpath, map_location=torch.device(device))['r3m']
     rep.load_state_dict(r3m_state_dict)
     return rep
 

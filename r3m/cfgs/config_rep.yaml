@@ -21,7 +21,7 @@ experiment: train_r3m
 lr: 1e-4
 # data
 alpha: 0.2
-dataset: "ego4d"
+dataset: "rlbench"
 wandbproject: 
 wandbuser: 
 doaug: "none"

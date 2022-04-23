@@ -43,6 +43,8 @@ class Workspace:
         print("Creating Dataloader")
         if self.cfg.dataset == "ego4d":
             sources = ["ego4d"]
+        elif self.cfg.dataset == "rlbench":
+            sources = ["rlbench"]
         else:
             raise NameError('Invalid Dataset')
 

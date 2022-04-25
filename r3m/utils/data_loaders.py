@@ -80,7 +80,7 @@ class R3MBuffer(IterableDataset):
 
         vidid = np.random.randint(0, self.datalen)
         m = self.manifest.iloc[vidid]
-        vidlen = m["len"]
+        vidlen = m["len"] - 1
         txt = m["txt"]
         if 'rlbench' in self.data_sources:
             label = txt.replace("_", " ")

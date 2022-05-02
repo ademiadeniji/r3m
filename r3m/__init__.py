@@ -41,31 +41,34 @@ def remove_language_head(state_dict):
             del state_dict[key]
     return state_dict
 
-def load_r3m(modelid):
-    home = os.path.join(expanduser("~"), ".r3m")
-    if modelid == "resnet50":
-        foldername = "r3m_50"
-        modelurl = 'https://drive.google.com/uc?id=1Xu0ssuG0N1zjZS54wmWzJ7-nb0-7XzbA'
-        configurl = 'https://drive.google.com/uc?id=10jY2VxrrhfOdNPmsFdES568hjjIoBJx8'
-    elif modelid == "resnet34":
-        foldername = "r3m_34"
-        modelurl = 'https://drive.google.com/uc?id=15bXD3QRhspIRacOKyWPw5y2HpoWUCEnE'
-        configurl = 'https://drive.google.com/uc?id=1RY0NS-Tl4G7M1Ik_lOym0b5VIBxX9dqW'
-    elif modelid == "resnet18":
-        foldername = "r3m_18"
-        modelurl = 'https://drive.google.com/uc?id=1A1ic-p4KtYlKXdXHcV2QV0cUzI4kn0u-'
-        configurl = 'https://drive.google.com/uc?id=1nitbHQ-GRorxc7vMUiEHjHWP5N11Jvc6'
-    else:
-        raise NameError('Invalid Model ID')
+def load_r3m(modelid, model_path=None):
+    if model_path is None:
+        home = os.path.join(expanduser("~"), ".r3m")
+        if modelid == "resnet50":
+            foldername = "r3m_50"
+            modelurl = 'https://drive.google.com/uc?id=1Xu0ssuG0N1zjZS54wmWzJ7-nb0-7XzbA'
+            configurl = 'https://drive.google.com/uc?id=10jY2VxrrhfOdNPmsFdES568hjjIoBJx8'
+        elif modelid == "resnet34":
+            foldername = "r3m_34"
+            modelurl = 'https://drive.google.com/uc?id=15bXD3QRhspIRacOKyWPw5y2HpoWUCEnE'
+            configurl = 'https://drive.google.com/uc?id=1RY0NS-Tl4G7M1Ik_lOym0b5VIBxX9dqW'
+        elif modelid == "resnet18":
+            foldername = "r3m_18"
+            modelurl = 'https://drive.google.com/uc?id=1A1ic-p4KtYlKXdXHcV2QV0cUzI4kn0u-'
+            configurl = 'https://drive.google.com/uc?id=1nitbHQ-GRorxc7vMUiEHjHWP5N11Jvc6'
+        else:
+            raise NameError('Invalid Model ID')
 
-    if not os.path.exists(os.path.join(home, foldername)):
-        os.makedirs(os.path.join(home, foldername))
-    modelpath = os.path.join(home, foldername, "model.pt")
-    configpath = os.path.join(home, foldername, "config.yaml")
-    if not os.path.exists(modelpath):
-        gdown.download(modelurl, modelpath, quiet=False)
-        gdown.download(configurl, configpath, quiet=False)
-        
+        if not os.path.exists(os.path.join(home, foldername)):
+            os.makedirs(os.path.join(home, foldername))
+        modelpath = os.path.join(home, foldername, "model.pt")
+        configpath = os.path.join(home, foldername, "config.yaml")
+        if not os.path.exists(modelpath):
+            gdown.download(modelurl, modelpath, quiet=False)
+            gdown.download(configurl, configpath, quiet=False)
+    else:
+        configpath = '/shared/ademi_adeniji/r3m/r3m/cfgs/config_rep.yaml'
+        modelpath = model_path
     modelcfg = omegaconf.OmegaConf.load(configpath)
     cleancfg = cleanup_config(modelcfg)
     rep = hydra.utils.instantiate(cleancfg)

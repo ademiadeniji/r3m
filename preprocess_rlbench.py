@@ -25,9 +25,11 @@ for lang in os.listdir(rlbench_dir):
                 view_dir = path.join(episode_dir, view)
                 if not path.isdir(view_dir):
                     continue
+                if not view_dir.endswith('rgb'):
+                    continue
                 print(f'processing view dir {view_dir}')
                 video = {'txt': lang, 'len': len(os.listdir(view_dir)), 'path': view_dir}
                 videos.append(video)
                 
 df = pd.DataFrame(videos)
-df.to_csv('/shared/ademi_adeniji/r3m/rlbench_manifest.csv')  
+df.to_csv('/shared/ademi_adeniji/r3m/rlbenchmanifestrgb.csv')  

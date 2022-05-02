@@ -9,7 +9,7 @@ save_snapshot: false
 load_snap: ""
 # replay buffer
 num_workers: 10
-batch_size: 32 #256
+batch_size: 16 #256
 train_steps: 4000000
 eval_freq: 20000
 # misc
@@ -24,7 +24,7 @@ alpha: 0.2
 dataset: "rlbench"
 wandbproject: 
 wandbuser: 
-doaug: "none"
+doaug: "rctraj"
 datapath: 
 
 agent:
@@ -32,10 +32,10 @@ agent:
   device: ${device}
   lr: ${lr}
   hidden_dim: 1024
-  size: 34
+  size: 50
   l2weight: 0.00001
   l1weight: 0.00001
   tcnweight: 1.0
-  langweight: 0.0
+  langweight: 1.0
   l2dist: true
   bs: ${batch_size}

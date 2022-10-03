@@ -39,7 +39,8 @@ class Workspace:
         self.cfg = cfg
         utils.set_seed_everywhere(cfg.seed)
         self.device = torch.device(cfg.device)
-        self.setup()
+        if self.cfg.wandb:
+            self.setup()
 
         print("Creating Dataloader")
         if self.cfg.dataset == "ego4d":
@@ -49,9 +50,9 @@ class Workspace:
         else:
             raise NameError('Invalid Dataset')
 
-        train_iterable = R3MBuffer(self.cfg.datapath, self.cfg.num_workers, "train", "train", 
+        train_iterable = R3MBuffer(self.cfg.manifest_path, self.cfg.num_workers, split="train",
                                     alpha = self.cfg.alpha, datasources=sources, doaug = self.cfg.doaug)
-        val_iterable = R3MBuffer(self.cfg.datapath, self.cfg.num_workers, "val", "validation", 
+        val_iterable = R3MBuffer(self.cfg.manifest_path, self.cfg.num_workers, split="eval", 
                                     alpha = 0, datasources=sources, doaug = 0)
 
         self.train_loader = iter(torch.utils.data.DataLoader(train_iterable,
@@ -67,7 +68,6 @@ class Workspace:
         ## Init Model
         print("Initializing Model")
         self.model = make_network(cfg.agent)
-
         self.timer = utils.Timer()
         self._global_step = 0
 
@@ -106,7 +106,8 @@ class Workspace:
             t1 = time.time()
             metrics, st = trainer.update(self.model, (batch_f.cuda(), batch_langs), self.global_step)
             t2 = time.time()
-            self.logger.log_metrics(metrics, self.global_frame, ty='train')
+            if self.cfg.wandb:
+                self.logger.log_metrics(metrics, self.global_frame, ty='train')
 
             if self.global_step % 10 == 0:
                 print(self.global_step, metrics)
@@ -117,9 +118,9 @@ class Workspace:
                 with torch.no_grad():
                     batch_f, batch_langs = next(self.val_loader)
                     metrics, st = trainer.update(self.model, (batch_f.cuda(), batch_langs), self.global_step, eval=True)
-                    self.logger.log_metrics(metrics, self.global_frame, ty='eval')
+                    if self.cfg.wandb:
+                        self.logger.log_metrics(metrics, self.global_frame, ty='eval')
                     print("EVAL", self.global_step, metrics)
-
                     self.save_snapshot()
             self._global_step += 1
 
@@ -139,6 +140,7 @@ class Workspace:
         self.model.load_state_dict(payload['r3m'])
         try:
             self._global_step = payload['global_step']
+            self._global_step = 0
         except:
             print("No global step found")
 

@@ -1,4 +1,4 @@
-name: r3m_base
+name: sr3m_base
 channels:
   - conda-forge
   - defaults

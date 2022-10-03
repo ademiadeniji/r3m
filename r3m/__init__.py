@@ -11,14 +11,11 @@ import hydra
 import gdown
 import torch
 import copy
+from torch._utils import _get_all_device_indices
 
 VALID_ARGS = ["_target_", "device", "lr", "hidden_dim", "size", "l2weight", "l1weight", "langweight", "tcnweight", "l2dist", "bs"]
-if torch.cuda.is_available():
-    device = "cuda"
-else:
-    device = "cpu"
 
-def cleanup_config(cfg):
+def cleanup_config(cfg, device):
     config = copy.deepcopy(cfg)
     keys = config.agent.keys()
     for key in list(keys):
@@ -41,7 +38,7 @@ def remove_language_head(state_dict):
             del state_dict[key]
     return state_dict
 
-def load_r3m(modelid, model_path=None):
+def load_r3m(modelid, model_path=None, device='cuda:0'):
     if model_path is None:
         home = os.path.join(expanduser("~"), ".r3m")
         if modelid == "resnet50":
@@ -70,9 +67,12 @@ def load_r3m(modelid, model_path=None):
         configpath = '/shared/ademi_adeniji/r3m/r3m/cfgs/config_rep.yaml'
         modelpath = model_path
     modelcfg = omegaconf.OmegaConf.load(configpath)
-    cleancfg = cleanup_config(modelcfg)
+    cleancfg = cleanup_config(modelcfg, device=device)
     rep = hydra.utils.instantiate(cleancfg)
-    rep = torch.nn.DataParallel(rep)
+    device_ids = _get_all_device_indices()
+    device_ids.remove(int(device[-1]))
+    device_ids.insert(0, int(device[-1]))
+    rep = torch.nn.DataParallel(rep, device_ids=device_ids)
     # r3m_state_dict = remove_language_head(torch.load(modelpath, map_location=torch.device(device))['r3m'])
     r3m_state_dict = torch.load(modelpath, map_location=torch.device(device))['r3m']
     rep.load_state_dict(r3m_state_dict)
@@ -88,11 +88,11 @@ def load_r3m_reproduce(modelid):
         foldername = "original_r3m_noaug"
         modelurl = 'https://drive.google.com/uc?id=1k_ZlVtvlktoYLtBcfD0aVFnrZcyCNS9D'
         configurl = 'https://drive.google.com/uc?id=1hPmJwDiWPkd6GGez6ywSC7UOTIX7NgeS'
-    elif modelif == "r3m_nol1":
+    elif modelid == "r3m_nol1":
         foldername = "original_r3m_nol1"
         modelurl = 'https://drive.google.com/uc?id=1LpW3aBMdjoXsjYlkaDnvwx7q22myM_nB'
         configurl = 'https://drive.google.com/uc?id=1rZUBrYJZvlF1ReFwRidZsH7-xe7csvab'
-    elif modelif == "r3m_nolang":
+    elif modelid == "r3m_nolang":
         foldername = "original_r3m_nolang"
         modelurl = 'https://drive.google.com/uc?id=1FXcniRei2JDaGMJJ_KlVxHaLy0Fs_caV'
         configurl = 'https://drive.google.com/uc?id=192G4UkcNJO4EKN46ECujMcH0AQVhnyQe'

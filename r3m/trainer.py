@@ -97,6 +97,16 @@ class Trainer():
             sim_negs3 = torch.stack(sim_negs3, -1)
             sim_negs_exp3 = torch.exp(sim_negs3)
 
+            # metrics["sim_pos1"] = torch.norm(sim_pos1)
+            # metrics["sim_pos2"] = torch.norm(sim_pos2)
+            # metrics["sim_pos3"] = torch.norm(sim_pos3)
+            # metrics["sim_negs1"] = torch.norm(sim_negs1)
+            # metrics["sim_negs2"] = torch.norm(sim_negs2)
+            # metrics["sim_negs3"] = torch.norm(sim_negs3)
+            # metrics["sim_negs_exp1"] = torch.norm(sim_negs_exp1)
+            # metrics["sim_negs_exp2"] = torch.norm(sim_negs_exp2)
+            # metrics["sim_negs_exp3"] = torch.norm(sim_negs_exp3)
+
             ## Compute InfoNCE loss
             rewloss1 = -torch.log(epsilon + (torch.exp(sim_pos1) / (epsilon + torch.exp(sim_pos1) + sim_negs_exp1.sum(-1))))
             rewloss2 = -torch.log(epsilon + (torch.exp(sim_pos2) / (epsilon + torch.exp(sim_pos2) + sim_negs_exp2.sum(-1))))
@@ -155,8 +165,12 @@ class Trainer():
         if not eval:
             model.module.encoder_opt.zero_grad()
             full_loss.backward()
+            # for name, param in model.module.named_parameters():
+            #     if param.grad is not None:
+            #         metrics[f'{name}_norm'] = torch.norm(param)
+            #         metrics[f'{name}_grad_norm'] = torch.norm(param.grad)
             model.module.encoder_opt.step()
 
         t7 = time.time()
-        st = f"Load time {t1-t0}, Batch time {t2-t1}, Encode and LP tine {t3-t2}, Lang time {t5-t3}, TCN time {t6-t5}, Backprop time {t7-t6}"
+        st = f"Load time {t1-t0}, Batch time {t2-t1}, Encode and LP time {t3-t2}, Lang time {t5-t3}, TCN time {t6-t5}, Backprop time {t7-t6}"
         return metrics, st

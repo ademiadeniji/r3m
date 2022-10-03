@@ -38,7 +38,7 @@ def get_ind(vid, index, ds):
 
 ## Data Loader for Ego4D
 class R3MBuffer(IterableDataset):
-    def __init__(self, datapath, num_workers, source1, source2, alpha, datasources, doaug = "none"):
+    def __init__(self, manifest_path, num_workers, split, alpha, datasources, doaug = "none"):
         self._num_workers = max(1, num_workers)
         self.alpha = alpha
         self.curr_same = 0
@@ -47,7 +47,7 @@ class R3MBuffer(IterableDataset):
 
         # Upsampler
         if 'rlbench' in self.data_sources:
-            self.resize = torch.nn.Upsample(224, mode='bilinear')
+            self.resize = torch.nn.Upsample(224, mode='bilinear', align_corners=False)
         else:
             self.resize = lambda a : a
 
@@ -62,12 +62,12 @@ class R3MBuffer(IterableDataset):
         # Load Data
         if "ego4d" in self.data_sources:
             print("Ego4D")
-            self.manifest = pd.read_csv(f"{datapath}manifest.csv")
+            self.manifest = pd.read_csv(manifest_path)
             print(self.manifest)
             self.datalen = len(self.manifest)
         elif "rlbench" in self.data_sources:
             print("RLBench")
-            self.manifest = pd.read_csv(f"{datapath}manifest.csv")
+            self.manifest = pd.read_csv(manifest_path)
             print(self.manifest)
             self.datalen = len(self.manifest)
         else:
@@ -93,7 +93,6 @@ class R3MBuffer(IterableDataset):
         s1_ind = np.random.randint(2, vidlen)
         s0_ind = np.random.randint(1, s1_ind)
         s2_ind = np.random.randint(s1_ind, vidlen+1)
-
         if self.doaug == "rctraj":
             ### Encode each image in the video at once the same way
             im0 = get_ind(vid, start_ind, ds) 

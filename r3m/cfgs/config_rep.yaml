@@ -7,10 +7,15 @@ defaults:
 # snapshot
 save_snapshot: false
 load_snap: ""
+linear_probe: false
+finetune_lang_reward: false
+finetune_bn_layers: false
+freeze_convnet: false
+freeze_lang_reward: false
 # replay buffer
 num_workers: 10
-batch_size: 16 #256
-train_steps: 4000000
+batch_size: 16 
+train_steps: 1000000
 eval_freq: 20000
 # misc
 seed: 1
@@ -24,8 +29,9 @@ alpha: 0.2
 dataset: "rlbench"
 wandbproject: 
 wandbuser: 
+wandb: false
 doaug: "rctraj"
-datapath: 
+manifest_path: 
 
 agent:
   _target_: r3m.R3M
@@ -39,3 +45,7 @@ agent:
   langweight: 1.0
   l2dist: true
   bs: ${batch_size}
+  linear_probe: ${linear_probe}
+  finetune_lang_reward: ${finetune_lang_reward}
+  finetune_bn_layers: ${finetune_bn_layers}
+  freeze_convnet: ${freeze_convnet}

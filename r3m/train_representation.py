@@ -21,6 +21,7 @@ from r3m.trainer import Trainer
 from r3m.utils.data_loaders import R3MBuffer
 from r3m.utils.logger import Logger
 import time
+import wandb
 
 torch.backends.cudnn.benchmark = True
 
@@ -47,6 +48,8 @@ class Workspace:
             sources = ["ego4d"]
         elif self.cfg.dataset == "rlbench":
             sources = ["rlbench"]
+        elif self.cfg.dataset == "something2something":
+            sources = ["something2something"]
         else:
             raise NameError('Invalid Dataset')
 
@@ -95,6 +98,8 @@ class Workspace:
         eval_freq = self.cfg.eval_freq
         eval_every_step = utils.Every(eval_freq,
                                       1)
+        save_every_step = utils.Every(self.cfg.save_freq,
+                                      1)
         trainer = Trainer(eval_freq)
 
         ## Training Loop
@@ -120,8 +125,13 @@ class Workspace:
                     metrics, st = trainer.update(self.model, (batch_f.cuda(), batch_langs), self.global_step, eval=True)
                     if self.cfg.wandb:
                         self.logger.log_metrics(metrics, self.global_frame, ty='eval')
+                        sample_image_start = batch_f[0, 0, :, :, :]
+                        sample_image_end = batch_f[0, -1, :, :, :]
+                        sample_image_lang = batch_langs[0]
+                        self.logger.add_images_with_caption(sample_image_start, sample_image_end, sample_image_lang)
                     print("EVAL", self.global_step, metrics)
-                    self.save_snapshot()
+            if save_every_step(self.global_step):
+                self.save_snapshot()
             self._global_step += 1
 
     def save_snapshot(self):
@@ -143,6 +153,7 @@ class Workspace:
             self._global_step = 0
         except:
             print("No global step found")
+        print(f"successfully loaded snapshot from {snapshot_path}")
 
 @hydra.main(config_path='cfgs', config_name='config_rep')
 def main(cfg):

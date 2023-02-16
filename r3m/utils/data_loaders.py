@@ -32,6 +32,8 @@ def get_ind(vid, index, ds):
         return torchvision.io.read_image(f"{vid}/{index:06}.jpg")
     elif ds == "rlbench":
         return torchvision.io.read_image(f"{vid}/{index}.png")
+    elif ds == "something2something":
+        return torchvision.io.read_image(f"{vid}/{index}.jpg")
     else:
         raise NameError('Invalid Dataset')
 
@@ -46,7 +48,7 @@ class R3MBuffer(IterableDataset):
         self.doaug = doaug
 
         # Upsampler
-        if 'rlbench' in self.data_sources:
+        if 'rlbench' in self.data_sources or 'something2something' in self.data_sources:
             self.resize = torch.nn.Upsample(224, mode='bilinear', align_corners=False)
         else:
             self.resize = lambda a : a
@@ -70,6 +72,11 @@ class R3MBuffer(IterableDataset):
             self.manifest = pd.read_csv(manifest_path)
             print(self.manifest)
             self.datalen = len(self.manifest)
+        elif "something2something" in self.data_sources:
+            print("something2something")
+            self.manifest = pd.read_csv(manifest_path)
+            print(self.manifest)
+            self.datalen = len(self.manifest)
         else:
             raise NameError('Invalid Dataset')
 
@@ -84,6 +91,8 @@ class R3MBuffer(IterableDataset):
         txt = m["txt"]
         if 'rlbench' in self.data_sources:
             label = txt.replace("_", " ")
+        elif 'something2something' in self.data_sources:
+            label = txt
         else:
             label = txt[2:] ## Cuts of the "C " part of the text
         vid = m["path"]

@@ -6,6 +6,7 @@ defaults:
 
 # snapshot
 save_snapshot: false
+save_freq: 10000
 load_snap: ""
 linear_probe: false
 finetune_lang_reward: false

@@ -19,8 +19,9 @@ epsilon = 1e-8
 def do_nothing(x): return x
 
 class Trainer():
-    def __init__(self, eval_freq):
+    def __init__(self, eval_freq, split_batch=False):
         self.eval_freq = eval_freq
+        self.split_batch = split_batch
 
     def update(self, model, batch, step, eval=False):
         t0 = time.time()
@@ -84,12 +85,31 @@ class Trainer():
             ## For the specified number of negative examples from other videos
             ## add e* as a negative
             for _ in range(num_neg):
-                negvidid = torch.randperm(e0.size()[0])
-                sim_negs1.append(model.module.get_reward(e0[negvidid], eg[negvidid], b_lang)[0])
-                negvidid = torch.randperm(e0.size()[0])
-                sim_negs2.append(model.module.get_reward(e0[negvidid], es1[negvidid], b_lang)[0])
-                negvidid = torch.randperm(e0.size()[0])
-                sim_negs3.append(model.module.get_reward(e0[negvidid], es2[negvidid], b_lang)[0])
+                if self.split_batch:
+                    negvidid = torch.randperm(e0.size()[0] // 2) 
+                    sim_negs1_a = model.module.get_reward(e0[(e0.size()[0] // 2) + negvidid], eg[(e0.size()[0] // 2) + negvidid], [b_lang[0]]*(e0.size()[0] // 2))[0]
+                    negvidid = torch.randperm(e0.size()[0] // 2) 
+                    sim_negs2_a = model.module.get_reward(e0[(e0.size()[0] // 2) + negvidid], es1[(e0.size()[0] // 2) + negvidid], [b_lang[0]]*(e0.size()[0] // 2))[0]
+                    negvidid = torch.randperm(e0.size()[0] // 2) 
+                    sim_negs3_a = model.module.get_reward(e0[(e0.size()[0] // 2) + negvidid], es2[(e0.size()[0] // 2) + negvidid], [b_lang[0]]*(e0.size()[0] // 2))[0]
+
+                    negvidid = torch.randperm(e0.size()[0] // 2) 
+                    sim_negs1_b = model.module.get_reward(e0[negvidid], eg[negvidid], [b_lang[-1]]*(e0.size()[0] // 2))[0]
+                    negvidid = torch.randperm(e0.size()[0] // 2) 
+                    sim_negs2_b = model.module.get_reward(e0[negvidid], es1[negvidid], [b_lang[-1]]*(e0.size()[0] // 2))[0]
+                    negvidid = torch.randperm(e0.size()[0] // 2) 
+                    sim_negs3_b = model.module.get_reward(e0[negvidid], es2[negvidid], [b_lang[-1]]*(e0.size()[0] // 2))[0]
+
+                    sim_negs1.append(torch.cat([sim_negs1_a, sim_negs1_b], 0))
+                    sim_negs2.append(torch.cat([sim_negs2_a, sim_negs2_b], 0))
+                    sim_negs3.append(torch.cat([sim_negs3_a, sim_negs3_b], 0))
+                else:
+                    negvidid = torch.randperm(e0.size()[0])
+                    sim_negs1.append(model.module.get_reward(e0[negvidid], eg[negvidid], b_lang)[0])
+                    negvidid = torch.randperm(e0.size()[0])
+                    sim_negs2.append(model.module.get_reward(e0[negvidid], es1[negvidid], b_lang)[0])
+                    negvidid = torch.randperm(e0.size()[0])
+                    sim_negs3.append(model.module.get_reward(e0[negvidid], es2[negvidid], b_lang)[0])
             sim_negs1 = torch.stack(sim_negs1, -1)
             sim_negs_exp1 = torch.exp(sim_negs1)
             sim_negs2 = torch.stack(sim_negs2, -1)

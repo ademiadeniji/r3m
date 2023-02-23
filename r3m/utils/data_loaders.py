@@ -40,12 +40,13 @@ def get_ind(vid, index, ds):
 
 ## Data Loader for Ego4D
 class R3MBuffer(IterableDataset):
-    def __init__(self, manifest_path, num_workers, split, alpha, datasources, doaug = "none"):
+    def __init__(self, manifest_path, num_workers, split, alpha, datasources, doaug = "none", split_batch_keyword=None):
         self._num_workers = max(1, num_workers)
         self.alpha = alpha
         self.curr_same = 0
         self.data_sources = datasources
         self.doaug = doaug
+        self.split_batch_keyword = split_batch_keyword
 
         # Upsampler
         if 'rlbench' in self.data_sources or 'something2something' in self.data_sources:
@@ -54,7 +55,24 @@ class R3MBuffer(IterableDataset):
             self.resize = lambda a : a
 
         # Augmentations
-        if doaug in ["rc", "rctraj"]:
+        if doaug == "rctrajheavy":
+            self.aug = torch.nn.Sequential(
+                transforms.RandomResizedCrop(224, scale = (0.2, 1.0)),
+                transforms.RandomHorizontalFlip(),
+                transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.3),
+                transforms.RandomAffine(degrees=30, translate=(0.2, 0.2), scale=(0.8, 1.2), shear=30, resample=False, fillcolor=0),
+                transforms.RandomPerspective(distortion_scale=0.5, p=0.5, fill=0),
+                transforms.RandomRotation(degrees=30, resample=False, expand=False, center=None, fill=None),
+                transforms.GaussianBlur(kernel_size=5, sigma=(0.1, 2.0)),
+            )
+        elif doaug == "rctrajmedium":
+            self.aug = torch.nn.Sequential(
+                transforms.RandomResizedCrop(224, scale = (0.2, 1.0)),
+                transforms.RandomHorizontalFlip(),
+                transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.3),
+                transforms.RandomRotation(degrees=30, resample=False, expand=False, center=None, fill=None),
+            )
+        elif doaug in ["rc", "rctraj"]:
             self.aug = torch.nn.Sequential(
                 transforms.RandomResizedCrop(224, scale = (0.2, 1.0)),
             )
@@ -87,6 +105,10 @@ class R3MBuffer(IterableDataset):
 
         vidid = np.random.randint(0, self.datalen)
         m = self.manifest.iloc[vidid]
+        if self.split_batch_keyword is not None:
+            while(self.split_batch_keyword not in m["txt"]):
+                vidid = np.random.randint(0, self.datalen)
+                m = self.manifest.iloc[vidid]
         vidlen = m["len"] - 1
         txt = m["txt"]
         if 'rlbench' in self.data_sources:
@@ -102,7 +124,7 @@ class R3MBuffer(IterableDataset):
         s1_ind = np.random.randint(2, vidlen)
         s0_ind = np.random.randint(1, s1_ind)
         s2_ind = np.random.randint(s1_ind, vidlen+1)
-        if self.doaug == "rctraj":
+        if self.doaug in ["rctraj", "rctrajheavy", "rctrajmedium"]:
             ### Encode each image in the video at once the same way
             im0 = get_ind(vid, start_ind, ds) 
             img = get_ind(vid, end_ind, ds)

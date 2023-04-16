@@ -166,6 +166,10 @@ class Logger(object):
     def log_and_dump_ctx(self, step, ty):
         return LogAndDumpCtx(self, step, ty)
 
+    def add_images_with_caption(self, image_start, image_end, caption, ty):
+        wandb.log({f"start_{ty}": [wandb.Image(image_start, caption=caption)]})
+        wandb.log({f"end_{ty}": [wandb.Image(image_end, caption=caption)]})
+
 
 class LogAndDumpCtx:
     def __init__(self, logger, step, ty):

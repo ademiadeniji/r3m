@@ -21,6 +21,7 @@ from r3m.trainer import Trainer
 from r3m.utils.data_loaders import R3MBuffer
 from r3m.utils.logger import Logger
 import time
+import wandb
 
 torch.backends.cudnn.benchmark = True
 
@@ -47,22 +48,52 @@ class Workspace:
             sources = ["ego4d"]
         elif self.cfg.dataset == "rlbench":
             sources = ["rlbench"]
+        elif self.cfg.dataset == "something2something":
+            sources = ["something2something"]
         else:
             raise NameError('Invalid Dataset')
 
-        train_iterable = R3MBuffer(self.cfg.manifest_path, self.cfg.num_workers, split="train",
-                                    alpha = self.cfg.alpha, datasources=sources, doaug = self.cfg.doaug)
-        val_iterable = R3MBuffer(self.cfg.manifest_path, self.cfg.num_workers, split="eval", 
-                                    alpha = 0, datasources=sources, doaug = 0)
+        if self.cfg.split_batch:
+            train_iterable_open = R3MBuffer(self.cfg.manifest_path, self.cfg.num_workers, split="train",
+                                        alpha = self.cfg.alpha, datasources=sources, doaug = self.cfg.doaug, split_batch_keyword="open")
+            val_iterable_open = R3MBuffer(self.cfg.val_manifest_path, self.cfg.num_workers, split="eval", 
+                                    alpha = 0, datasources=sources, doaug = 0, split_batch_keyword = "open")
+            train_iterable_clos = R3MBuffer(self.cfg.manifest_path, self.cfg.num_workers, split="train",
+                                        alpha = self.cfg.alpha, datasources=sources, doaug = self.cfg.doaug, split_batch_keyword="clos")
+            val_iterable_clos = R3MBuffer(self.cfg.val_manifest_path, self.cfg.num_workers, split="eval", 
+                                    alpha = 0, datasources=sources, doaug = 0, split_batch_keyword = "clos")
+        else:
+            train_iterable = R3MBuffer(self.cfg.manifest_path, self.cfg.num_workers, split="train",
+                                        alpha = self.cfg.alpha, datasources=sources, doaug = self.cfg.doaug, split_batch_keyword=None)
+            val_iterable = R3MBuffer(self.cfg.val_manifest_path, self.cfg.num_workers, split="eval", 
+                                        alpha = 0, datasources=sources, doaug = 0, split_batch_keyword = None)
 
-        self.train_loader = iter(torch.utils.data.DataLoader(train_iterable,
-                                         batch_size=self.cfg.batch_size,
-                                         num_workers=self.cfg.num_workers,
-                                         pin_memory=True))
-        self.val_loader = iter(torch.utils.data.DataLoader(val_iterable,
-                                         batch_size=self.cfg.batch_size,
-                                         num_workers=self.cfg.num_workers,
-                                         pin_memory=True))
+        if self.cfg.split_batch:
+            self.train_loader_open = iter(torch.utils.data.DataLoader(train_iterable_open,
+                                             batch_size=self.cfg.batch_size // 2,
+                                             num_workers=self.cfg.num_workers,
+                                             pin_memory=True))
+            self.val_loader_open = iter(torch.utils.data.DataLoader(val_iterable_open,
+                                             batch_size=self.cfg.batch_size // 2,
+                                             num_workers=self.cfg.num_workers,
+                                             pin_memory=True))
+            self.train_loader_clos = iter(torch.utils.data.DataLoader(train_iterable_clos,
+                                             batch_size=self.cfg.batch_size // 2,
+                                             num_workers=self.cfg.num_workers,
+                                             pin_memory=True))
+            self.val_loader_clos = iter(torch.utils.data.DataLoader(val_iterable_clos,
+                                             batch_size=self.cfg.batch_size // 2,
+                                             num_workers=self.cfg.num_workers,
+                                             pin_memory=True))
+        else:
+            self.train_loader = iter(torch.utils.data.DataLoader(train_iterable,
+                                            batch_size=self.cfg.batch_size,
+                                            num_workers=self.cfg.num_workers,
+                                            pin_memory=True))
+            self.val_loader = iter(torch.utils.data.DataLoader(val_iterable,
+                                            batch_size=self.cfg.batch_size,
+                                            num_workers=self.cfg.num_workers,
+                                            pin_memory=True))
 
 
         ## Init Model
@@ -95,14 +126,22 @@ class Workspace:
         eval_freq = self.cfg.eval_freq
         eval_every_step = utils.Every(eval_freq,
                                       1)
-        trainer = Trainer(eval_freq)
+        save_every_step = utils.Every(self.cfg.save_freq,
+                                      1)
+        trainer = Trainer(eval_freq, self.cfg.split_batch)
 
         ## Training Loop
         print("Begin Training")
         while train_until_step(self.global_step):
             ## Sample Batch
             t0 = time.time()
-            batch_f, batch_langs = next(self.train_loader)
+            if self.cfg.split_batch:
+                batch_f_open, batch_langs_open = next(self.train_loader_open)
+                batch_f_clos, batch_langs_clos = next(self.train_loader_clos)
+                batch_f = torch.cat((batch_f_open, batch_f_clos), dim=0)
+                batch_langs = batch_langs_open + batch_langs_clos
+            else:
+                batch_f, batch_langs = next(self.train_loader)
             t1 = time.time()
             metrics, st = trainer.update(self.model, (batch_f.cuda(), batch_langs), self.global_step)
             t2 = time.time()
@@ -116,12 +155,27 @@ class Workspace:
                 
             if eval_every_step(self.global_step):
                 with torch.no_grad():
-                    batch_f, batch_langs = next(self.val_loader)
-                    metrics, st = trainer.update(self.model, (batch_f.cuda(), batch_langs), self.global_step, eval=True)
+                    if self.cfg.split_batch:
+                        batch_f_val_open, batch_langs_val_open = next(self.val_loader_open)
+                        batch_f_val_clos, batch_langs_val_clos = next(self.val_loader_clos)
+                        batch_f_val = torch.cat((batch_f_val_open, batch_f_val_clos), dim=0)
+                        batch_langs_val = batch_langs_val_open + batch_langs_val_clos
+                    else:
+                        batch_f_val, batch_langs_val = next(self.val_loader)
+                    metrics, st = trainer.update(self.model, (batch_f_val.cuda(), batch_langs_val), self.global_step, eval=True)
                     if self.cfg.wandb:
                         self.logger.log_metrics(metrics, self.global_frame, ty='eval')
+                        sample_image_start = batch_f_val[0, 0, :, :, :]
+                        sample_image_end = batch_f_val[0, -1, :, :, :]
+                        sample_image_lang = batch_langs_val[0]
+                        self.logger.add_images_with_caption(sample_image_start, sample_image_end, sample_image_lang, ty='eval')
+                        sample_image_start = batch_f[0, 0, :, :, :]
+                        sample_image_end = batch_f[0, -1, :, :, :]
+                        sample_image_lang = batch_langs[0]
+                        self.logger.add_images_with_caption(sample_image_start, sample_image_end, sample_image_lang, ty='train')
                     print("EVAL", self.global_step, metrics)
-                    self.save_snapshot()
+            if save_every_step(self.global_step):
+                self.save_snapshot()
             self._global_step += 1
 
     def save_snapshot(self):
@@ -143,6 +197,7 @@ class Workspace:
             self._global_step = 0
         except:
             print("No global step found")
+        print(f"successfully loaded snapshot from {snapshot_path}")
 
 @hydra.main(config_path='cfgs', config_name='config_rep')
 def main(cfg):

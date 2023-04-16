@@ -6,6 +6,7 @@ defaults:
 
 # snapshot
 save_snapshot: false
+save_freq: 10000
 load_snap: ""
 linear_probe: false
 finetune_lang_reward: false
@@ -32,6 +33,8 @@ wandbuser:
 wandb: false
 doaug: "rctraj"
 manifest_path: 
+val_manifest_path:
+split_batch: false
 
 agent:
   _target_: r3m.R3M

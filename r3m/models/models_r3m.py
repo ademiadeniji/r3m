@@ -115,6 +115,12 @@ class R3M(nn.Module):
         ## Optimizer
         self.encoder_opt = torch.optim.Adam(params, lr = lr)
 
+    def get_lang_enc(self, sentences):
+        return self.lang_enc(sentences)
+    
+    def get_reward_le(self, e0, es, le):
+        return self.lang_rew(e0, es, le)
+
     def get_reward(self, e0, es, sentences):
         ## Only callable is langweight was set to be 1
         le = self.lang_enc(sentences)
